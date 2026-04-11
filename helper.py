@@ -49,13 +49,13 @@ def extract_posts(subreddit):
         return ""
 
     posts = []
-    print(f"{subreddit} - {data}")
 
     for index, post in enumerate(data.get("data", {}).get("children", [])):
         title = post["data"].get("title", "")
         body = post["data"].get("selftext", "").replace("\n", "")
         posts.append(f"Post {index+1}: {title}\nBody {index+1}: {body}\n\n")
 
+    print(f"{subreddit} - {posts}")
     return "".join(posts)
 
 
