@@ -25,8 +25,8 @@ the content:
     return PROMPT
 
 def extract_posts(subreddit):
+    headers = {"User-Agent": "Mozilla/5.0"}
     url = f"https://www.reddit.com/r/{subreddit}/new.json"
-    headers = {"User-Agent": "my-app"}
     response = requests.get(url, headers=headers)
     data = response.json()
 
