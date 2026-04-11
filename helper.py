@@ -55,7 +55,7 @@ def extract_posts(subreddit):
         body = post["data"].get("selftext", "").replace("\n", "")
         posts.append(f"Post {index+1}: {title}\nBody {index+1}: {body}\n\n")
 
-    print(f"{subreddit} - {posts}")
+    print(f"Extracted: {subreddit} - {posts}")
     return "".join(posts)
 
 
