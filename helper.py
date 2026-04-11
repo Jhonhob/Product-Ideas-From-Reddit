@@ -4,17 +4,20 @@ import requests
 from dotenv import load_dotenv
 
 load_dotenv()
+# SUBREDDITS = [
+#     "ProductHunters",
+#     "Entrepreneur",
+#     "Startup_Ideas",
+#     "SaaS",
+#     "microsaas",
+#     "problems",
+#     "passive_income"
+#     ]
 SUBREDDITS = [
-    "ProductHunters",
-    "Entrepreneur",
-    "Startup_Ideas",
-    "SaaS",
-    "microsaas",
-    "problems",
-    "passive_income"
+    "ProductHunters"
     ]
 def product_ideas_prompt(subreddit,content):
-    PROMPT = f'''You are Given with the content of the {subreddit} subreddit you have to extract out potential product ideas, just give the ideas and no other text and make sure the its short and simple,
+    PROMPT = f'''You are Given with the content of the {subreddit} subreddit you have to extract out potential product ideas, just give the ideas description and no other text and make sure the its short and simple,
 the content:
 {content}
 '''
@@ -53,35 +56,59 @@ def extract_posts(subreddit):
     return "".join(posts)
 
 
+# def send_ai_request(prompt):
+#     API_KEY = os.getenv("GEMINI_KEY")
+#     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={API_KEY}"
+#     payload = json.dumps({
+#     "contents": [
+#         {
+#         "parts": [
+#             {
+#             "text": f"{prompt}"
+#             }
+#         ]
+#         }
+#     ]
+#     })
+#     headers = {
+#     'Content-Type': 'application/json'
+#     }
+
+#     response = requests.request("POST", url, headers=headers, data=payload)
+
+#     json_response = json.loads(response.text)
+
+#     text = json_response["candidates"][0]["content"]["parts"][0]["text"]
+#     return text
 def send_ai_request(prompt):
-    API_KEY = os.getenv("GEMINI_KEY")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={API_KEY}"
+    OPENROUTER_KEY = os.getenv("OPENROUTER_KEY")
+    url = "https://openrouter.ai/api/v1/chat/completions"
+
     payload = json.dumps({
-    "contents": [
+      # "model": "openrouter/free",
+      "model": "openai/gpt-oss-120b:free",
+      "messages": [
         {
-        "parts": [
-            {
-            "text": f"{prompt}"
-            }
-        ]
+          "role": "user",
+          "content": f"{prompt}"
         }
-    ]
+      ]
     })
     headers = {
-    'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Authorization': f'Bearer {OPENROUTER_KEY}'
     }
 
     response = requests.request("POST", url, headers=headers, data=payload)
-
     json_response = json.loads(response.text)
-
-    text = json_response["candidates"][0]["content"]["parts"][0]["text"]
+    print("Response Raw",json_response)
+    text = json_response["choices"][0]["message"]["content"]
+    print("\n\nResponse Content",text)
     return text
-
 
 def get_final_ideas(content_list):
     all_ideas = "\n".join(content_list)
-    prompt = f'''You are given with multiple product ideas, filter out the top 10 best ideas that could work out and give that to me and don't add any additional text in the response than just the ideas,
+    prompt = f'''You are given with multiple product ideas, filter out the top 10 best ideas that could work out and give that to me and don't add any additional text in the response than just the ideas description,
 the content:
 {all_ideas}
 '''
