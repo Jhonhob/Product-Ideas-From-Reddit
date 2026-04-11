@@ -4,19 +4,15 @@ import requests
 from dotenv import load_dotenv
 
 load_dotenv()
-# SUBREDDITS = [
-#     "ProductHunters",
-#     "Entrepreneur",
-#     "Startup_Ideas",
-#     "SaaS",
-#     "microsaas",
-#     "problems",
-#     "passive_income"
-#     ]
 SUBREDDITS = [
-    "ProductHunters"
+    "ProductHunters",
+    "Entrepreneur",
+    "Startup_Ideas",
+    "SaaS",
+    "microsaas",
+    "problems",
+    "passive_income"
     ]
-
 def product_ideas_prompt(subreddit,content):
     PROMPT = f'''You are Given with the content of the {subreddit} subreddit you have to extract out potential product ideas, just give the ideas and no other text and make sure the its short and simple,
 the content:
