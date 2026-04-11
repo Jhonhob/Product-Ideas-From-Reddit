@@ -1,0 +1,1 @@
+This is a automated script which uses the Github Actions and Gemini Model to freely scrape reddit and find potential product ideas from the given subreddits
