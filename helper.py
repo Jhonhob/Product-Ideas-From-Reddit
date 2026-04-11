@@ -24,20 +24,37 @@ the content:
 '''
     return PROMPT
 
+
 def extract_posts(subreddit):
-    headers = {"User-Agent": "Mozilla/5.0"}
-    url = f"https://www.reddit.com/r/{subreddit}/new.json"
+    url = f"https://api.reddit.com/r/{subreddit}/new"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; my-bot/1.0)"
+    }
+
     response = requests.get(url, headers=headers)
-    data = response.json()
+
+    print("Status Code:", response.status_code)
+
+    if response.status_code != 200:
+        print("Error response:", response.text[:200])
+        return ""
+
+    try:
+        data = response.json()
+    except Exception as e:
+        print("JSON failed:", e)
+        print("Raw response:", response.text[:200])
+        return ""
 
     posts = []
-    content = ""
-    for index,post in enumerate(data["data"]["children"]):
-        title = post["data"]["title"]
-        body = post["data"]["selftext"].replace("\n","")
-        posts.append(f"Post {index+1}: {title}\nbody {index+1}: {body}\n\n")
-    content = "".join(posts)
-    return content
+
+    for index, post in enumerate(data.get("data", {}).get("children", [])):
+        title = post["data"].get("title", "")
+        body = post["data"].get("selftext", "").replace("\n", "")
+        posts.append(f"Post {index+1}: {title}\nBody {index+1}: {body}\n\n")
+
+    return "".join(posts)
 
 
 def send_ai_request(prompt):
