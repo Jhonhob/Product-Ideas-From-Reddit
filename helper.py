@@ -49,7 +49,7 @@ def extract_posts(subreddit):
         return ""
 
     posts = []
-    print(f"{subreddit} - {data.get("data", {}).get("children", [])}")
+    print(f"{subreddit} - {data}")
 
     for index, post in enumerate(data.get("data", {}).get("children", [])):
         title = post["data"].get("title", "")
