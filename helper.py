@@ -25,6 +25,7 @@ the content:
 
 
 def extract_posts(subreddit):
+    
     url = f"https://api.reddit.com/r/{subreddit}/new"
 
     headers = {
@@ -34,6 +35,7 @@ def extract_posts(subreddit):
     response = requests.get(url, headers=headers)
 
     print("Status Code:", response.status_code)
+
 
     if response.status_code != 200:
         print("Error response:", response.text[:200])
@@ -47,6 +49,7 @@ def extract_posts(subreddit):
         return ""
 
     posts = []
+    print(f"{subreddit} - {data.get("data", {}).get("children", [])}")
 
     for index, post in enumerate(data.get("data", {}).get("children", [])):
         title = post["data"].get("title", "")
