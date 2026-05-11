@@ -265,6 +265,8 @@ RULES:
 6. DO NOT include phrases like "Here are the ideas", "Based on the content", "I found", etc.
 7. Output ONLY the list of product ideas, nothing else
 8. DO NOT output any thinking process, reasoning steps, or internal monologue
+9. DO NOT add any markers like "VALID", "INVALID", checkmarks, or annotations
+10. Each line must follow the exact format: "Name: description" with no extra words before or after
 
 Reddit posts content:
 {all_ideas}
@@ -279,25 +281,71 @@ Output (only product ideas, one per line, no other text):
         line = line.strip()
         if not line:
             continue
-        # Skip lines that look like thinking/reasoning/explanation
-        skip_patterns = [
-            "let me", "i need to", "based on", "here are", "i will", "first,", "second,", 
-            "looking at", "analyzing", "considering", "exclude", "include", "rule", 
-            "step ", "thought ", "reasoning", "analysis", "conclusion", "summary",
-            "the user", "the content", "post update", "task ", "#", "(", ")", 
-            "actually", "probably", "maybe", "should", "could", "would",
-            "we have", "there are", "out of these", "thus", "therefore",
-            "now,", "so,", "but", "however", "moreover", "additionally"
-        ]
+        
         line_lower = line.lower()
-        if any(pattern in line_lower for pattern in skip_patterns):
+        
+        # Strict whitelist approach: only accept lines matching product idea pattern
+        # Pattern: "ProductName: description" where name is alphanumeric (may contain spaces/hyphens)
+        # and description is meaningful text
+        
+        # Reject lines containing common thinking/reasoning markers
+        reject_patterns = [
+            "valid", "invalid", "let me", "i need to", "based on", "here are", "i will",
+            "first,", "second,", "third,", "looking at", "analyzing", "considering",
+            "exclude", "include", "rule", "step ", "thought ", "reasoning", "analysis",
+            "conclusion", "summary", "the user", "the content", "post update", "task ",
+            "actually", "probably", "maybe", "should", "could", "would", "we have",
+            "there are", "out of these", "thus", "therefore", "now,", "so,", "but",
+            "however", "moreover", "additionally", "i'll", "i will", "prepare to",
+            "ensure", "filter out", "remaining", "final list", "see full", "email",
+            "notification", "... and", "more ideas", "generated automatically",
+            "workflow", "created automatically", "reddit product ideas", "sounds like",
+            "described as", "seems to be", "mentioned with", "this is", "describes a",
+            "generic post", "not a product", "just discussion", "i'll prepare",
+            "studyduo", "collecta", "articuler"
+        ]
+        
+        if any(pattern in line_lower for pattern in reject_patterns):
             continue
-        # Only keep lines that look like product ideas (contain colon or look like a name + description)
-        if ":" in line and len(line) > 5:
-            filtered_lines.append(line)
-        elif len(line) > 10 and not line_lower.startswith(("the", "a", "an", "this", "that")):
-            # Fallback: keep substantial lines that don't start with common words
-            filtered_lines.append(line)
+        
+        # Must contain a colon separating name and description
+        if ":" not in line:
+            continue
+            
+        # Split by first colon only
+        parts = line.split(":", 1)
+        if len(parts) != 2:
+            continue
+            
+        name_part = parts[0].strip()
+        desc_part = parts[1].strip()
+        
+        # Name should be reasonable (2-50 chars, alphanumeric with spaces/hyphens)
+        if not name_part or len(name_part) < 2 or len(name_part) > 50:
+            continue
+        
+        # Description should be meaningful (at least 10 chars)
+        if not desc_part or len(desc_part) < 10:
+            continue
+        
+        # Name should not start with common sentence starters
+        invalid_starts = ["the", "a", "an", "this", "that", "it", "i", "we", "you", "he", "she"]
+        if name_part.lower().split()[0] in invalid_starts:
+            continue
+        
+        # Additional check: name should look like a product name (capitalized, no sentences)
+        # Product names typically don't have spaces unless they are multi-word brands
+        # If name has multiple words, each should be capitalized (like "Cancel Flow")
+        name_words = name_part.split()
+        if len(name_words) > 3:
+            continue  # Too many words in name, likely not a product name
+        
+        # Check if name looks like a proper noun (starts with capital letter)
+        if not name_part[0].isupper():
+            continue
+        
+        # Passed all filters - this looks like a valid product idea
+        filtered_lines.append(f"{name_part}: {desc_part}")
     
     return "\n".join(filtered_lines)
 
