@@ -1,8 +1,5 @@
 name: Product Ideas From Reddit
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 on:
   schedule:
     - cron: "30 23 * * *"
@@ -14,10 +11,10 @@ jobs:
 
     steps:
       - name: Get code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -30,18 +27,20 @@ jobs:
         run: |
           echo "Checking environment variables..."
           if [ -z "$AI_API_KEY" ]; then echo "❌ AI_API_KEY NOT SET"; else echo "✅ AI_API_KEY SET"; fi
-          if [ -z "$AI_BASE_URL" ]; then echo "ℹ️  AI_BASE_URL not set (will use default)"; else echo "✅ AI_BASE_URL SET: $AI_BASE_URL"; fi
+          if [ -z "$AI_BASE_URL" ]; then echo "ℹ️  AI_BASE_URL not set (will use default)"; else echo "✅ AI_BASE_URL SET"; fi
           if [ -z "$AI_MODEL" ]; then echo "ℹ️  AI_MODEL not set (will use default)"; else echo "✅ AI_MODEL SET: $AI_MODEL"; fi
-          if [ -z "$EMAIL_USER" ]; then echo "❌ EMAIL_USER NOT SET"; else echo "✅ EMAIL_USER SET"; fi
-          if [ -z "$EMAIL_PASS" ]; then echo "❌ EMAIL_PASS NOT SET"; else echo "✅ EMAIL_PASS SET"; fi
-          if [ -z "$FEISHU_WEBHOOK_URL" ]; then echo "❌ FEISHU_WEBHOOK_URL NOT SET"; else echo "✅ FEISHU_WEBHOOK_URL SET"; fi
+          if [ -z "$RSS_URL" ]; then echo "❌ RSS_URL NOT SET"; else echo "✅ RSS_URL SET"; fi
+          if [ -z "$NOTIFY_EMAIL" ]; then echo "ℹ️  NOTIFY_EMAIL not set (email disabled)"; else echo "✅ NOTIFY_EMAIL SET"; fi
+          if [ -z "$FEISHU_APP_ID" ]; then echo "❌ FEISHU_APP_ID NOT SET"; else echo "✅ FEISHU_APP_ID SET"; fi
+          if [ -z "$FEISHU_APP_SECRET" ]; then echo "❌ FEISHU_APP_SECRET NOT SET"; else echo "✅ FEISHU_APP_SECRET SET"; fi
         env:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
-          EMAIL_USER: ${{ secrets.EMAIL_USER }}
-          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          RSS_URL: ${{ secrets.RSS_URL }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
 
       - name: Run script
         run: python main.py
@@ -49,6 +48,7 @@ jobs:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
-          EMAIL_USER: ${{ secrets.EMAIL_USER }}
-          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          RSS_URL: ${{ secrets.RSS_URL }}
+          NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
+          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
