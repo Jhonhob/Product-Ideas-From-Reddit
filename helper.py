@@ -161,9 +161,9 @@ the content:
     return PROMPT
 
 
-def send_ai_request(prompt):
+def send_ai_request(prompt, retries=3):
     """
-    Send AI request using OpenAI-compatible interface.
+    Send AI request using OpenAI-compatible interface with retry logic.
     Supports any provider with OpenAI-compatible API (OpenRouter, OpenAI, local LLMs, etc.)
     
     Environment variables required:
@@ -195,28 +195,36 @@ def send_ai_request(prompt):
       'Authorization': f'Bearer {api_key}'
     }
 
-    try:
-        response = requests.request("POST", url, headers=headers, data=payload, timeout=30)
-        response.raise_for_status()
-        json_response = response.json()
-        print("Response Raw", json_response)
-        
-        if "choices" not in json_response or len(json_response["choices"]) == 0:
-            log_debug(f"Error: No choices in response: {json_response}")
+    for attempt in range(retries):
+        try:
+            log_debug(f"Sending AI request (attempt {attempt + 1}/{retries})...")
+            response = requests.request("POST", url, headers=headers, data=payload, timeout=60)
+            response.raise_for_status()
+            json_response = response.json()
+            print("Response Raw", json_response)
+            
+            if "choices" not in json_response or len(json_response["choices"]) == 0:
+                log_debug(f"Error: No choices in response: {json_response}")
+                return ""
+            
+            text = json_response["choices"][0]["message"]["content"]
+            print("\n\nResponse Content", text)
+            return text
+        except requests.exceptions.Timeout:
+            log_debug(f"Error: Request timed out (attempt {attempt + 1}/{retries})")
+            if attempt == retries - 1:
+                return ""
+            time.sleep(2 ** attempt)  # Exponential backoff
+        except requests.exceptions.RequestException as e:
+            log_debug(f"Error: Request failed - {e} (attempt {attempt + 1}/{retries})")
+            if attempt == retries - 1:
+                return ""
+            time.sleep(1)
+        except (KeyError, IndexError, json.JSONDecodeError) as e:
+            log_debug(f"Error: Failed to parse response - {e}")
             return ""
-        
-        text = json_response["choices"][0]["message"]["content"]
-        print("\n\nResponse Content", text)
-        return text
-    except requests.exceptions.Timeout:
-        log_debug("Error: Request timed out")
-        return ""
-    except requests.exceptions.RequestException as e:
-        log_debug(f"Error: Request failed - {e}")
-        return ""
-    except (KeyError, IndexError, json.JSONDecodeError) as e:
-        log_debug(f"Error: Failed to parse response - {e}")
-        return ""
+    
+    return ""
 
 def get_final_ideas(content_list):
     all_ideas = "\n".join(content_list)
