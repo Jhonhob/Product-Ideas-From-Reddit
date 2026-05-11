@@ -70,14 +70,30 @@ def send_feishu(content):
     Args:
         content: String containing the product ideas to send
     """
+    # Check all required environment variables first
+    app_id = os.getenv("FEISHU_APP_ID")
+    app_secret = os.getenv("FEISHU_APP_SECRET")
     chat_id = os.getenv("FEISHU_CHAT_ID")
     
+    print("\n--- Feishu Configuration Check ---")
+    print(f"FEISHU_APP_ID: {'✅ SET' if app_id else '❌ NOT SET'}")
+    print(f"FEISHU_APP_SECRET: {'✅ SET' if app_secret else '❌ NOT SET'}")
+    print(f"FEISHU_CHAT_ID: {'✅ SET' if chat_id else '❌ NOT SET'}")
+    
     if not chat_id:
-        print("Error: FEISHU_CHAT_ID not found in environment variables")
+        print("❌ Error: FEISHU_CHAT_ID is required but not set")
         return False
+    
+    if not app_id or not app_secret:
+        print("❌ Error: FEISHU_APP_ID and FEISHU_APP_SECRET are required but not set")
+        return False
+    
+    print(f"✅ All Feishu credentials configured")
+    print(f"   Chat ID: {chat_id}")
     
     token = get_tenant_access_token()
     if not token:
+        print("❌ Failed to get tenant access token")
         return False
     
     # Create client with token
@@ -114,13 +130,23 @@ def send_feishu(content):
         .build()
     
     # Send request
+    print(f"\n📤 Sending message to Feishu chat: {chat_id}")
     response = client.im.v1.message.create(request)
     
     if not response.success():
-        print(f"Failed to send Feishu message: {response.code} - {response.msg}")
+        print(f"❌ Failed to send Feishu message: {response.code} - {response.msg}")
+        print(f"   Error details: {response}")
+        # Check for common error codes
+        if response.code == 99991663:
+            print("   💡 Hint: chat_id may be incorrect or the bot may not be added to the group")
+        elif response.code == 99991661:
+            print("   💡 Hint: Invalid tenant_access_token, check FEISHU_APP_ID and FEISHU_APP_SECRET")
+        elif response.code == 99991664:
+            print("   💡 Hint: Bot doesn't have permission to send messages to this chat")
         return False
     
-    print("Feishu notification sent successfully!")
+    print("✅ Feishu notification sent successfully!")
+    print(f"   Message ID: {response.data.message_id if hasattr(response.data, 'message_id') else 'N/A'}")
     return True
 
 

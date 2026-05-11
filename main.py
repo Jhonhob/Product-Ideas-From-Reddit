@@ -1,6 +1,6 @@
 import helper
 import send_email
-import send_feishu
+import send_github
 
 def main():
     ideas = []
@@ -31,8 +31,13 @@ def main():
             else:
                 print("Email notification skipped (EMAIL_USER not configured)")
             
-            # Send Feishu notification
-            send_feishu.send_feishu(best_ideas)
+            # Send GitHub Issues notification
+            print("\n--- Sending GitHub Issues Notification ---")
+            github_result = send_github.send_github_issue(best_ideas)
+            if github_result:
+                print("✅ GitHub Issues notification completed successfully")
+            else:
+                print("❌ GitHub Issues notification failed - check error messages above")
         else:
             print("Failed to generate final ideas")
     else:

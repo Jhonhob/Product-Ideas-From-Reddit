@@ -31,16 +31,16 @@ jobs:
           if [ -z "$AI_MODEL" ]; then echo "ℹ️  AI_MODEL not set (will use default)"; else echo "✅ AI_MODEL SET: $AI_MODEL"; fi
           if [ -z "$RSS_URL" ]; then echo "❌ RSS_URL NOT SET"; else echo "✅ RSS_URL SET"; fi
           if [ -z "$NOTIFY_EMAIL" ]; then echo "ℹ️  NOTIFY_EMAIL not set (email disabled)"; else echo "✅ NOTIFY_EMAIL SET"; fi
-          if [ -z "$FEISHU_APP_ID" ]; then echo "❌ FEISHU_APP_ID NOT SET"; else echo "✅ FEISHU_APP_ID SET"; fi
-          if [ -z "$FEISHU_APP_SECRET" ]; then echo "❌ FEISHU_APP_SECRET NOT SET"; else echo "✅ FEISHU_APP_SECRET SET"; fi
+          if [ -z "$GITHUB_TOKEN" ]; then echo "ℹ️  GITHUB_TOKEN not set (will use default)"; else echo "✅ GITHUB_TOKEN SET"; fi
+          if [ -z "$GITHUB_REPOSITORY" ]; then echo "❌ GITHUB_REPOSITORY NOT SET"; else echo "✅ GITHUB_REPOSITORY SET: $GITHUB_REPOSITORY"; fi
         env:
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
           RSS_URL: ${{ secrets.RSS_URL }}
           NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
-          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
-          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
       - name: Run script
         run: python main.py
@@ -50,5 +50,5 @@ jobs:
           AI_MODEL: ${{ secrets.AI_MODEL }}
           RSS_URL: ${{ secrets.RSS_URL }}
           NOTIFY_EMAIL: ${{ secrets.NOTIFY_EMAIL }}
-          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
-          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
