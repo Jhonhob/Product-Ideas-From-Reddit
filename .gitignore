@@ -1,4 +1,33 @@
 ```
-# Configuration and workflow files
-.github/
+# Compiled Python files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Dependencies
+venv/
+.venv/
+.env
+.env.local
+*.env.*
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+
+# Editors
+.vscode/
+.idea/
+
+# Coverage reports
+.coverage
+htmlcov/
+coverage/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
 ```

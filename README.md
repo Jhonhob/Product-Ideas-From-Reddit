@@ -47,12 +47,14 @@ EMAIL_PASS=your-app-password
 AI_API_KEY=your-ai-api-key
 AI_BASE_URL=https://api.openai.com/v1  # Optional, defaults to OpenAI
 AI_MODEL=gpt-3.5-turbo  # Optional, defaults to gpt-3.5-turbo
-FEISHU_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/xxx  # Optional
+FEISHU_APP_ID=cli_xxxxxxxxxxxxx  # Feishu App ID
+FEISHU_APP_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  # Feishu App Secret
+FEISHU_CHAT_ID=oc_xxxxxxxxxxxxx  # Target group chat ID
 ```
 
 **Getting credentials:**
 - **Gmail App Password**: https://myaccount.google.com/apppasswords
-- **Feishu Webhook**: Create a bot in your Feishu group (see instructions below)
+- **Feishu App Credentials**: See "Feishu/Lark Setup" section below for detailed instructions
 - **AI API Key**: Depends on your provider:
   - **OpenAI**: https://platform.openai.com/api-keys
   - **OpenRouter**: https://openrouter.ai/keys (supports multiple models)
@@ -104,30 +106,56 @@ SUBREDDITS = [
    - `AI_API_KEY`: Your AI provider API key
    - `AI_BASE_URL`: (Optional) API base URL, defaults to OpenAI
    - `AI_MODEL`: (Optional) Model name, defaults to gpt-3.5-turbo
+   - `FEISHU_APP_ID`: Feishu App ID
+   - `FEISHU_APP_SECRET`: Feishu App Secret
+   - `FEISHU_CHAT_ID`: Target group chat ID
 
 The workflow runs automatically every day at 23:30 UTC, or you can trigger it manually using the "Run workflow" button.
 
 ## Feishu/Lark Setup
 
-To receive notifications in Feishu (Lark):
+To receive notifications in Feishu (Lark) using the official SDK:
 
-1. **Create a Custom Bot** in your Feishu group:
-   - Open your Feishu group chat
-   - Click the group settings (⋮) → Add Bot → Custom Bot
-   - Give it a name (e.g., "Product Ideas Bot")
-   - Copy the generated Webhook URL
+### 1. Create a Feishu Self-Built App
 
-2. **Configure the webhook**:
-   - In `.env` file or GitHub Secrets, add:
-     ```bash
-     FEISHU_WEBHOOK_URL=https://open.feishu.cn/open-apis/bot/v2/hook/YOUR_WEBHOOK_URL
-     ```
+1. Go to [Feishu Open Platform](https://open.feishu.cn/app)
+2. Click "Create Enterprise Self-Built App"
+3. Fill in app name (e.g., "Reddit Product Scanner")
+4. After creation, you'll see **App ID** and **App Secret** on the app credentials page
 
-3. **Optional: Enable security settings** (recommended for production):
-   - In the bot settings, choose one of: Signatures, IP Whitelist, or Keywords
-   - If using signatures, you'll need to modify `send_feishu.py` to include HMAC signing
+### 2. Configure App Permissions
 
-The script will send both a simple text message and can be configured to send rich interactive cards with formatted content.
+1. In the app management console, go to "Permissions Management"
+2. Add the following permissions:
+   - **Send messages to groups**: `im:message`
+   - **Send messages to users**: `im:message.p2p` (optional)
+   - **Get tenant access token**: Already included by default
+3. Click "Submit for Review" (for development, you can use test enterprise without review)
+
+### 3. Add Bot to Group Chat
+
+1. In your Feishu group chat, click group settings (⋮) → Add Bot
+2. Select your self-built app from the list
+3. Copy the **Chat ID**:
+   - Method 1: In group settings, the chat_id is in the URL
+   - Method 2: Use the API to list chats
+   - Method 3: Send a message to the group and check the response
+
+### 4. Configure Environment Variables
+
+In `.env` file or GitHub Secrets, add:
+
+```bash
+FEISHU_APP_ID=cli_xxxxxxxxxxxxx
+FEISHU_APP_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FEISHU_CHAT_ID=oc_xxxxxxxxxxxxx  # Group chat ID
+```
+
+### 5. Optional: Event Subscription
+
+For advanced features like receiving messages, configure event subscriptions in the app console.
+
+The script uses the official `lark-oapi` SDK with automatic token management and caching. It supports both text messages and rich interactive cards.
 
 ## Local Testing
 
@@ -144,7 +172,7 @@ python main.py
 - `main.py` - Entry point, orchestrates the workflow
 - `helper.py` - Core logic: RSS fetching, database management, AI integration (OpenAI-compatible)
 - `send_email.py` - Email sending via Gmail SMTP
-- `send_feishu.py` - Feishu/Lark notifications via webhook (text and interactive card formats)
+- `send_feishu.py` - Feishu/Lark notifications using official SDK (text and interactive card formats)
 - `requirements.txt` - Python dependencies
 - `.github/workflows/reminder.yml` - GitHub Actions scheduled job
 - `reddit_posts.db` - SQLite database (created on first run)
