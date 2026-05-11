@@ -42,6 +42,10 @@ def main():
             print("Failed to generate final ideas")
     else:
         print("No new product ideas to process today.")
+    
+    # Commit database changes to git for incremental updates tracking
+    print("\n--- Committing Database Changes ---")
+    helper.commit_db_to_git()
 
 if __name__ == "__main__":
     main()
