@@ -1,33 +1,4 @@
 ```
-# Database files
-*.db
-
-# Environment variables
-.env
-.env.local
-*.env.*
-
-# Logs
-*.log
-
-# Temporary files
-*.tmp
-*.swp
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-.venv.*
-.ENV
-.ENV.*
-.egg-info/
-.eggs/
-build/
-dist/
+# Configuration and workflow files
+.github/
 ```
