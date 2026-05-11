@@ -24,9 +24,12 @@ def main():
         if best_ideas:
             html = helper.get_email_html(best_ideas)
             
-            # Send email notification
-            send_email.send_email(html)
-            print("Email sent successfully!")
+            # Send email notification (only if EMAIL_USER is configured)
+            if send_email.is_email_configured():
+                send_email.send_email(html)
+                print("Email sent successfully!")
+            else:
+                print("Email notification skipped (EMAIL_USER not configured)")
             
             # Send Feishu notification
             send_feishu.send_feishu(best_ideas)
