@@ -2,6 +2,7 @@ import json
 import os
 import requests
 import sqlite3
+import subprocess
 import time
 import xml.etree.ElementTree as ET
 from datetime import datetime
@@ -132,6 +133,30 @@ def update_database(posts):
     
     return new_posts, updated_posts
 
+
+def commit_db_to_git():
+    """Commit the database to git for incremental updates tracking"""
+    try:
+        # Check if there are changes to commit
+        result = subprocess.run(
+            ['git', 'diff', '--quiet', DB_NAME],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode != 0:  # There are changes
+            subprocess.run(['git', 'add', DB_NAME], capture_output=True)
+            subprocess.run(
+                ['git', 'commit', '-m', f'Update reddit_posts.db - {datetime.now().isoformat()}'],
+                capture_output=True,
+                text=True
+            )
+            log_debug("Database committed to git successfully")
+        else:
+            log_debug("No database changes to commit")
+    except Exception as e:
+        log_debug(f"Failed to commit database to git: {e}")
+
 def extract_posts(subreddit_config):
     """Fetch posts from RSS and update database, return new posts content for AI processing"""
     init_db()
@@ -229,7 +254,7 @@ def send_ai_request(prompt, retries=3):
 
 def get_final_ideas(content_list):
     all_ideas = "\n".join(content_list)
-    prompt = f'''You are given with multiple product ideas, filter out the top 10 best ideas that could work out and give that to me and don't add any additional text in the response than just the ideas description,
+    prompt = f'''You are a data extraction and filtering system. You are given with multiple product ideas from Reddit, filter out the top 10 best ideas that could work out and give that to me. Only include actual product ideas (products, services, tools, platforms) - exclude generic posts like "share what you're working on", advice requests, or feedback requests. Don't add any additional text in the response than just the ideas description (short and simple),
 the content:
 {all_ideas}
 '''
