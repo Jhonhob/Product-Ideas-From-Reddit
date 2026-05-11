@@ -31,12 +31,10 @@ jobs:
           echo "EMAIL_USER is set?"
           if [ -z "$EMAIL_USER" ]; then echo "NO"; else echo "YES"; fi
           if [ -z "$EMAIL_PASS" ]; then echo "PASS NOT SET"; else echo "PASS SET"; fi
-          if [ -z "$GEMINI_KEY" ]; then echo "GEMINI NOT SET"; else echo "GEMINI SET"; fi
           if [ -z "$OPENROUTER_KEY" ]; then echo "OPENROUTER_KEY NOT SET"; else echo "OPENROUTER_KEY SET"; fi
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
           OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
 
       - name: Run script
@@ -44,5 +42,4 @@ jobs:
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
-          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
           OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
