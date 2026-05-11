@@ -2,6 +2,7 @@ import json
 import os
 import requests
 import sqlite3
+import time
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from dotenv import load_dotenv
