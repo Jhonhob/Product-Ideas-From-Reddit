@@ -1,22 +1,159 @@
 import json
 import os
 import requests
+import sqlite3
+import xml.etree.ElementTree as ET
+from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
-# SUBREDDITS = [
-#     "ProductHunters",
-#     "Entrepreneur",
-#     "Startup_Ideas",
-#     "SaaS",
-#     "microsaas",
-#     "problems",
-#     "passive_income"
-#     ]
+
+# Configurable subreddits with their RSS URLs and optional flair filters
 SUBREDDITS = [
-    "ProductHunters"
-    ]
-def product_ideas_prompt(subreddit,content):
+    {
+        "name": "ProductHunters",
+        "rss_url": "https://old.reddit.com/r/ProductHunters/new.rss"
+    },
+    # Example with flair filter:
+    # {
+    #     "name": "midsoledeals",
+    #     "rss_url": "https://old.reddit.com/r/midsoledeals/search.rss?q=flair%3A%22New%20Balance%22%20OR%20flair%3A%22Adidas%22&restrict_sr=1&sort=new"
+    # }
+]
+
+DB_NAME = 'reddit_posts.db'
+
+def log_debug(message):
+    with open('debug.log', 'a') as f:
+        f.write(f"{datetime.now()}: {message}\n")
+    print(message)
+
+def get_user_agent():
+    try:
+        user_agents = requests.get(
+            "https://techfanetechnologies.github.io/latest-user-agent/user_agents.json"
+        ).json()
+        return user_agents[-2]
+    except Exception as e:
+        log_debug(f"Error fetching user agent: {e}")
+        return "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS posts (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        link TEXT,
+        published TEXT,
+        author TEXT,
+        thumbnail TEXT,
+        first_seen TEXT,
+        last_seen TEXT
+    )
+    ''')
+    
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        run_time TEXT
+    )
+    ''')
+    
+    conn.commit()
+    conn.close()
+
+def fetch_posts_from_rss(rss_url):
+    user_agent = get_user_agent()
+    headers = {"user-agent": user_agent}
+    
+    log_debug(f"Fetching RSS feed from {rss_url}")
+    response = requests.get(rss_url, headers=headers)
+    
+    if response.status_code != 200:
+        log_debug(f"Error: Received status code {response.status_code}")
+        return []
+    
+    try:
+        root = ET.fromstring(response.content)
+    except ET.ParseError as e:
+        log_debug(f"XML parsing error: {e}")
+        return []
+    
+    namespaces = {
+        'atom': 'http://www.w3.org/2005/Atom',
+        'media': 'http://search.yahoo.com/mrss/'
+    }
+    
+    posts = []
+    for entry in root.findall('atom:entry', namespaces):
+        post = {
+            'id': entry.find('atom:id', namespaces).text if entry.find('atom:id', namespaces) is not None else '',
+            'title': entry.find('atom:title', namespaces).text if entry.find('atom:title', namespaces) is not None else '',
+            'link': entry.find('atom:link', namespaces).attrib.get('href', '') if entry.find('atom:link', namespaces) is not None else '',
+            'published': entry.find('atom:published', namespaces).text if entry.find('atom:published', namespaces) is not None else '',
+            'author': entry.find('atom:author/atom:name', namespaces).text if entry.find('atom:author/atom:name', namespaces) is not None else '',
+            'thumbnail': entry.find('media:thumbnail', namespaces).attrib.get('url', '') if entry.find('media:thumbnail', namespaces) is not None else ''
+        }
+        posts.append(post)
+    
+    return posts
+
+def update_database(posts):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    
+    current_time = datetime.now().isoformat()
+    
+    new_posts = []
+    updated_posts = []
+    
+    for post in posts:
+        cursor.execute('SELECT id, last_seen FROM posts WHERE id = ?', (post['id'],))
+        result = cursor.fetchone()
+        
+        if result is None:
+            cursor.execute('''
+            INSERT INTO posts (id, title, link, published, author, thumbnail, first_seen, last_seen)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (post['id'], post['title'], post['link'], post['published'], post['author'], post['thumbnail'], current_time, current_time))
+            new_posts.append(post)
+        else:
+            cursor.execute('UPDATE posts SET last_seen = ? WHERE id = ?', (current_time, post['id']))
+            updated_posts.append(post)
+    
+    cursor.execute('INSERT INTO runs (run_time) VALUES (?)', (current_time,))
+    
+    conn.commit()
+    conn.close()
+    
+    return new_posts, updated_posts
+
+def extract_posts(subreddit_config):
+    """Fetch posts from RSS and update database, return new posts content for AI processing"""
+    init_db()
+    
+    rss_url = subreddit_config.get('rss_url', f"https://old.reddit.com/r/{subreddit_config['name']}/new.rss")
+    current_posts = fetch_posts_from_rss(rss_url)
+    new_posts, updated_posts = update_database(current_posts)
+    
+    log_debug(f"Found {len(new_posts)} new posts from {subreddit_config['name']}")
+    log_debug(f"Updated {len(updated_posts)} existing posts")
+    
+    # Format new posts for AI processing
+    posts_content = []
+    for index, post in enumerate(new_posts):
+        title = post.get('title', '')
+        link = post.get('link', '')
+        author = post.get('author', '')
+        posts_content.append(f"Post {index+1}: {title}\nLink: {link}\nAuthor: {author}\n\n")
+    
+    return "".join(posts_content) if posts_content else ""
+
+
+def product_ideas_prompt(subreddit, content):
     PROMPT = f'''You are Given with the content of the {subreddit} subreddit you have to extract out potential product ideas, just give the ideas description and no other text and make sure the its short and simple,
 the content:
 {content}
@@ -24,90 +161,62 @@ the content:
     return PROMPT
 
 
-def extract_posts(subreddit):
-    
-    url = f"https://api.reddit.com/r/{subreddit}/new"
-
-    headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; my-bot/1.0)"
-    }
-
-    response = requests.get(url, headers=headers)
-
-    print("Status Code:", response.status_code)
-
-
-    if response.status_code != 200:
-        print("Error response:", response.text[:200])
-        return ""
-
-    try:
-        data = response.json()
-    except Exception as e:
-        print("JSON failed:", e)
-        print("Raw response:", response.text[:200])
-        return ""
-
-    posts = []
-
-    for index, post in enumerate(data.get("data", {}).get("children", [])):
-        title = post["data"].get("title", "")
-        body = post["data"].get("selftext", "").replace("\n", "")
-        posts.append(f"Post {index+1}: {title}\nBody {index+1}: {body}\n\n")
-
-    print(f"Extracted: {subreddit} - {posts}")
-    return "".join(posts)
-
-
-# def send_ai_request(prompt):
-#     API_KEY = os.getenv("GEMINI_KEY")
-#     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={API_KEY}"
-#     payload = json.dumps({
-#     "contents": [
-#         {
-#         "parts": [
-#             {
-#             "text": f"{prompt}"
-#             }
-#         ]
-#         }
-#     ]
-#     })
-#     headers = {
-#     'Content-Type': 'application/json'
-#     }
-
-#     response = requests.request("POST", url, headers=headers, data=payload)
-
-#     json_response = json.loads(response.text)
-
-#     text = json_response["candidates"][0]["content"]["parts"][0]["text"]
-#     return text
 def send_ai_request(prompt):
-    OPENROUTER_KEY = os.getenv("OPENROUTER_KEY")
-    url = "https://openrouter.ai/api/v1/chat/completions"
+    """
+    Send AI request using OpenAI-compatible interface.
+    Supports any provider with OpenAI-compatible API (OpenRouter, OpenAI, local LLMs, etc.)
+    
+    Environment variables required:
+    - AI_API_KEY: API key for the AI provider
+    - AI_BASE_URL: Base URL for the API (default: https://api.openai.com/v1)
+    - AI_MODEL: Model name to use (default: gpt-3.5-turbo)
+    """
+    api_key = os.getenv("AI_API_KEY")
+    base_url = os.getenv("AI_BASE_URL", "https://api.openai.com/v1").rstrip('/')
+    model = os.getenv("AI_MODEL", "gpt-3.5-turbo")
+    
+    if not api_key:
+        log_debug("Error: AI_API_KEY not found in environment variables")
+        return ""
+    
+    url = f"{base_url}/chat/completions"
 
     payload = json.dumps({
-      # "model": "openrouter/free",
-      "model": "openai/gpt-oss-120b:free",
+      "model": model,
       "messages": [
         {
           "role": "user",
-          "content": f"{prompt}"
+          "content": prompt
         }
       ]
     })
     headers = {
       'Content-Type': 'application/json',
-      'Authorization': f'Bearer {OPENROUTER_KEY}'
+      'Authorization': f'Bearer {api_key}'
     }
 
-    response = requests.request("POST", url, headers=headers, data=payload)
-    json_response = json.loads(response.text)
-    print("Response Raw",json_response)
-    text = json_response["choices"][0]["message"]["content"]
-    print("\n\nResponse Content",text)
-    return text
+    try:
+        response = requests.request("POST", url, headers=headers, data=payload, timeout=30)
+        response.raise_for_status()
+        json_response = response.json()
+        print("Response Raw", json_response)
+        
+        if "choices" not in json_response or len(json_response["choices"]) == 0:
+            log_debug(f"Error: No choices in response: {json_response}")
+            return ""
+        
+        text = json_response["choices"][0]["message"]["content"]
+        print("\n\nResponse Content", text)
+        return text
+    except requests.exceptions.Timeout:
+        log_debug("Error: Request timed out")
+        return ""
+    except requests.exceptions.RequestException as e:
+        log_debug(f"Error: Request failed - {e}")
+        return ""
+    except (KeyError, IndexError, json.JSONDecodeError) as e:
+        log_debug(f"Error: Failed to parse response - {e}")
+        return ""
 
 def get_final_ideas(content_list):
     all_ideas = "\n".join(content_list)
