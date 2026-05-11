@@ -1,0 +1,4 @@
+2026-05-10 16:53:20.718212: Fetching RSS feed from https://old.reddit.com/r/ProductHunters/new.rss
+2026-05-10 16:53:21.933588: Found 25 new posts from ProductHunters
+2026-05-10 16:53:21.933657: Updated 0 existing posts
+2026-05-10 16:53:21.933743: Error: OPENROUTER_KEY not found in environment variables
