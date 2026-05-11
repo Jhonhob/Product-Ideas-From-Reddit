@@ -1,34 +1,97 @@
 import os
 import json
-import requests
+import lark_oapi as lark
+from lark_oapi.api.im.v1 import *
 from dotenv import load_dotenv
 
 load_dotenv()
 
+# Cache for tenant_access_token
+_token_cache = {
+    'token': None,
+    'expire_time': 0
+}
+
+def get_tenant_access_token():
+    """
+    Get tenant access token using AppID and AppSecret.
+    Uses caching to avoid unnecessary API calls.
+    """
+    import time
+    
+    # Check cache first
+    current_time = time.time()
+    if _token_cache['token'] and current_time < _token_cache['expire_time']:
+        return _token_cache['token']
+    
+    app_id = os.getenv("FEISHU_APP_ID")
+    app_secret = os.getenv("FEISHU_APP_SECRET")
+    
+    if not app_id or not app_secret:
+        print("Error: FEISHU_APP_ID or FEISHU_APP_SECRET not found in environment variables")
+        return None
+    
+    # Create client
+    client = lark.ws.Client.default(app_id=app_id, app_secret=app_secret)
+    
+    # Build request
+    request = TenantAccessTokenRequest.builder() \
+        .request(TenantAccessTokenRequestBody.builder()
+            .app_id(app_id)
+            .app_secret(app_secret)
+            .build()) \
+        .build()
+    
+    # Send request
+    response = client.im.v1.tenant_access_token.create(request)
+    
+    if not response.success():
+        print(f"Failed to get tenant access token: {response.code} - {response.msg}")
+        return None
+    
+    # Cache the token (expires in 2 hours, we'll refresh at 90 minutes)
+    expires_in = response.data.expires_in
+    _token_cache['token'] = response.data.tenant_access_token
+    _token_cache['expire_time'] = current_time + expires_in - 300  # Refresh 5 minutes early
+    
+    print("Successfully obtained tenant access token")
+    return _token_cache['token']
+
+
 def send_feishu(content):
     """
-    Send product ideas to Feishu (Lark) via webhook.
+    Send product ideas to Feishu (Lark) using official SDK.
     
     Environment variables required:
-    - FEISHU_WEBHOOK_URL: Feishu bot webhook URL
+    - FEISHU_APP_ID: Feishu app ID
+    - FEISHU_APP_SECRET: Feishu app secret
+    - FEISHU_CHAT_ID: Target chat ID (group chat ID or open_id)
     
     Args:
         content: String containing the product ideas to send
     """
-    webhook_url = os.getenv("FEISHU_WEBHOOK_URL")
+    chat_id = os.getenv("FEISHU_CHAT_ID")
     
-    if not webhook_url:
-        print("Error: FEISHU_WEBHOOK_URL not found in environment variables")
+    if not chat_id:
+        print("Error: FEISHU_CHAT_ID not found in environment variables")
         return False
     
+    token = get_tenant_access_token()
+    if not token:
+        return False
+    
+    # Create client with token
+    client = lark.ws.Client.default(
+        app_id=os.getenv("FEISHU_APP_ID"),
+        app_secret=os.getenv("FEISHU_APP_SECRET")
+    )
+    
     # Format content for Feishu message
-    # Split content into lines and format as interactive message
     lines = [line.strip() for line in content.split('\n') if line.strip()]
     
     # Create text content with proper formatting
     text_content = "🚀 **Reddit Product Ideas**\n\n"
     for i, line in enumerate(lines[:15], 1):  # Limit to 15 items for readability
-        # Remove markdown bullets and add emoji
         clean_line = line.replace('- ', '').replace('* ', '').replace('• ', '')
         if clean_line.startswith(f"{i}.") or clean_line.startswith(f"{i}、"):
             text_content += f"{clean_line}\n"
@@ -38,55 +101,51 @@ def send_feishu(content):
     if len(lines) > 15:
         text_content += f"\n... and {len(lines) - 15} more ideas"
     
-    # Feishu message payload (text type)
-    payload = {
-        "msg_type": "text",
-        "content": {
-            "text": text_content
-        }
-    }
+    # Build request
+    request = CreateMessageRequest.builder() \
+        .request(CreateMessageRequestBody.builder()
+            .receive_id(chat_id)
+            .msg_type("text")
+            .content(json.dumps({"text": text_content}))
+            .build()) \
+        .query_params(CreateMessageQueryParams.builder()
+            .receive_id_type("chat_id")
+            .build()) \
+        .build()
     
-    headers = {
-        'Content-Type': 'application/json'
-    }
+    # Send request
+    response = client.im.v1.message.create(request)
     
-    try:
-        response = requests.post(webhook_url, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
-        
-        result = response.json()
-        
-        # Check Feishu response
-        if result.get('StatusCode') == 0 or result.get('code') == 0 or 'ok' in str(result).lower():
-            print("Feishu notification sent successfully!")
-            return True
-        else:
-            print(f"Feishu API returned error: {result}")
-            return False
-            
-    except requests.exceptions.Timeout:
-        print("Error: Feishu request timed out")
+    if not response.success():
+        print(f"Failed to send Feishu message: {response.code} - {response.msg}")
         return False
-    except requests.exceptions.RequestException as e:
-        print(f"Error: Feishu request failed - {e}")
-        return False
-    except Exception as e:
-        print(f"Error: Failed to send Feishu notification - {e}")
-        return False
+    
+    print("Feishu notification sent successfully!")
+    return True
 
 
 def send_feishu_card(content):
     """
-    Send product ideas to Feishu as an interactive card (richer format).
+    Send product ideas to Feishu as an interactive card using official SDK.
     
     Args:
         content: String containing the product ideas to send
     """
-    webhook_url = os.getenv("FEISHU_WEBHOOK_URL")
+    chat_id = os.getenv("FEISHU_CHAT_ID")
     
-    if not webhook_url:
-        print("Error: FEISHU_WEBHOOK_URL not found in environment variables")
+    if not chat_id:
+        print("Error: FEISHU_CHAT_ID not found in environment variables")
         return False
+    
+    token = get_tenant_access_token()
+    if not token:
+        return False
+    
+    # Create client with token
+    client = lark.ws.Client.default(
+        app_id=os.getenv("FEISHU_APP_ID"),
+        app_secret=os.getenv("FEISHU_APP_SECRET")
+    )
     
     # Split content into lines
     lines = [line.strip() for line in content.split('\n') if line.strip()]
@@ -133,39 +192,37 @@ def send_feishu_card(content):
         "elements": [
             {
                 "tag": "plain_text",
-                "content": f"Generated at {os.popen('date').read().strip()}"
+                "content": "Generated by Reddit Product Scanner"
             }
         ]
     })
     
-    # Feishu card message payload
-    payload = {
-        "msg_type": "interactive",
-        "card": {
-            "config": {
-                "wide_screen_mode": True
-            },
-            "elements": elements
-        }
+    # Build card content
+    card_content = {
+        "config": {
+            "wide_screen_mode": True
+        },
+        "elements": elements
     }
     
-    headers = {
-        'Content-Type': 'application/json'
-    }
+    # Build request
+    request = CreateMessageRequest.builder() \
+        .request(CreateMessageRequestBody.builder()
+            .receive_id(chat_id)
+            .msg_type("interactive")
+            .content(json.dumps(card_content))
+            .build()) \
+        .query_params(CreateMessageQueryParams.builder()
+            .receive_id_type("chat_id")
+            .build()) \
+        .build()
     
-    try:
-        response = requests.post(webhook_url, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
-        
-        result = response.json()
-        
-        if result.get('StatusCode') == 0 or result.get('code') == 0 or 'ok' in str(result).lower():
-            print("Feishu card notification sent successfully!")
-            return True
-        else:
-            print(f"Feishu API returned error: {result}")
-            return False
-            
-    except Exception as e:
-        print(f"Error: Failed to send Feishu card notification - {e}")
+    # Send request
+    response = client.im.v1.message.create(request)
+    
+    if not response.success():
+        print(f"Failed to send Feishu card message: {response.code} - {response.msg}")
         return False
+    
+    print("Feishu card notification sent successfully!")
+    return True
