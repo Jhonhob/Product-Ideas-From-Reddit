@@ -254,12 +254,52 @@ def send_ai_request(prompt, retries=3):
 
 def get_final_ideas(content_list):
     all_ideas = "\n".join(content_list)
-    prompt = f'''You are a data extraction and filtering system. You are given with multiple product ideas from Reddit, filter out the top 10 best ideas that could work out and give that to me. Only include actual product ideas (products, services, tools, platforms) - exclude generic posts like "share what you're working on", advice requests, or feedback requests. Don't add any additional text in the response than just the ideas description (short and simple),
-the content:
+    prompt = f'''You are a data extraction and filtering system. Extract ONLY actual product ideas (products, services, tools, platforms) from the Reddit posts below.
+
+RULES:
+1. Exclude generic posts like "share what you're working on", advice requests, feedback requests, or discussion threads
+2. Only include posts that describe a specific product/service/tool/platform
+3. For each valid product idea, output ONE line with a brief description in this format: "ProductName: short description"
+4. Output MAXIMUM 10 ideas (or fewer if less than 10 valid ideas exist)
+5. DO NOT include any explanations, reasoning, analysis, introductions, conclusions, or meta-text
+6. DO NOT include phrases like "Here are the ideas", "Based on the content", "I found", etc.
+7. Output ONLY the list of product ideas, nothing else
+8. DO NOT output any thinking process, reasoning steps, or internal monologue
+
+Reddit posts content:
 {all_ideas}
+
+Output (only product ideas, one per line, no other text):
 '''
     final_ideas = send_ai_request(prompt)
-    return final_ideas
+    
+    # Post-process to filter out any non-idea lines (thinking process, explanations, etc.)
+    filtered_lines = []
+    for line in final_ideas.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        # Skip lines that look like thinking/reasoning/explanation
+        skip_patterns = [
+            "let me", "i need to", "based on", "here are", "i will", "first,", "second,", 
+            "looking at", "analyzing", "considering", "exclude", "include", "rule", 
+            "step ", "thought ", "reasoning", "analysis", "conclusion", "summary",
+            "the user", "the content", "post update", "task ", "#", "(", ")", 
+            "actually", "probably", "maybe", "should", "could", "would",
+            "we have", "there are", "out of these", "thus", "therefore",
+            "now,", "so,", "but", "however", "moreover", "additionally"
+        ]
+        line_lower = line.lower()
+        if any(pattern in line_lower for pattern in skip_patterns):
+            continue
+        # Only keep lines that look like product ideas (contain colon or look like a name + description)
+        if ":" in line and len(line) > 5:
+            filtered_lines.append(line)
+        elif len(line) > 10 and not line_lower.startswith(("the", "a", "an", "this", "that")):
+            # Fallback: keep substantial lines that don't start with common words
+            filtered_lines.append(line)
+    
+    return "\n".join(filtered_lines)
 
 def get_email_html(content):
     ideas_list = content.split("\n")
